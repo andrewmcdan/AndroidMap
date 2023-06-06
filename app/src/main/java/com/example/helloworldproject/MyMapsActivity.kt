@@ -4,6 +4,8 @@ package com.example.helloworldproject
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Dialog
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -13,8 +15,11 @@ import android.location.LocationManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
+import android.view.LayoutInflater
 
 import android.view.MotionEvent
+import android.view.View
+import android.widget.TextView
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.app.ActivityCompat
 import androidx.core.graphics.createBitmap
@@ -33,6 +38,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.PolygonOptions
 import com.google.android.gms.maps.model.TileOverlayOptions
 import com.google.android.gms.maps.model.TileProvider
 import kotlinx.coroutines.CoroutineScope
@@ -78,6 +84,11 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
+        val customLayout = LayoutInflater.from(this).inflate(R.layout.custom_info_window, null)
+
+
+
+
         // Initialize the location manager
         locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
     }
@@ -95,6 +106,23 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
         mMap.isMyLocationEnabled = true
         mMap.uiSettings.isMyLocationButtonEnabled = true
 
@@ -110,20 +138,21 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         val success = mMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style))
         //mMap.mapType = GoogleMap.MAP_TYPE_TERRAIN;
         // Add a marker in Sydney and move the camera
-        markerLatLong[0] = LatLng(34.7335757, -85.2239801)
+        //markerLatLong[0] = LatLng(34.7335757, -85.2239801)
+        markerLatLong[0] = LatLng(34.0476818,-84.6960141)
         //var marker = mMap.addMarker(MarkerOptions()
         theMarkers[0] = mMap.addMarker(MarkerOptions()
             .position(markerLatLong[0])
-            .title("Marker " + counter)
+            .title("Marker $counter")
             .visible(true))
         theMarkers[0]?.showInfoWindow()
         theMarkers[0]?.setIcon(markerIconScaled)
         //mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myHome, 15f))
-        mMap.setOnCameraMoveListener { onCameraMove() }
-
+        mMap.setOnCameraMoveListener { updateAllMarkers() }
+        //showCustomWindow("test title", "test snippet", this)
     }
 
-    fun onCameraMove(){
+    private fun updateAllMarkers(){
         theMarkers[0]?.hideInfoWindow()
         theMarkers[0]?.title = "test" + counter++
         theMarkers[0]?.showInfoWindow()
@@ -180,3 +209,19 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         }
     }
 }
+
+//fun showCustomWindow(title: String, snippet: String, context: Context) {
+//    val dialogView = LayoutInflater.from(context).inflate(R.layout.custom_info_window, null)
+//
+//    val titleTextView = dialogView.findViewById<TextView>(R.id.titleTextView)
+//    val snippetTextView = dialogView.findViewById<TextView>(R.id.snippetTextView)
+//    //titleTextView.
+//
+//    titleTextView.text = title
+//    snippetTextView.text = snippet
+//
+//    //val dialog = Dialog(context)
+//    //dialog.setContentView(dialogView)
+//    //dialog.show()
+//}
+
