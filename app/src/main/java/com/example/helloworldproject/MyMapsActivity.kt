@@ -9,12 +9,16 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 
 import android.view.MotionEvent
@@ -51,11 +55,39 @@ import kotlinx.coroutines.launch
 // TODO:
 //  this class needs to be fleshed out and then used as the object to
 //  the data for each friends' marker
-class friendMarker{
+class FriendMarker{
     private var marker : Marker? = null
-    private var markerLatLong = LatLng(0.0,0.0)
-    fun createMarker(latitude: Double, longitude: Double){
+    private lateinit var markerLatLong: LatLng
+    private lateinit var markerName: String
 
+    fun createMarker(latitude: Double, longitude: Double, map: GoogleMap, icon: BitmapDescriptor){
+        markerLatLong = LatLng(latitude,longitude)
+
+        marker = map.addMarker(MarkerOptions()
+            .position(markerLatLong)
+            .title("Marker")
+            .visible(true))
+        marker?.showInfoWindow()
+        marker?.setIcon(icon)
+    }
+
+    fun update(){
+        // do all the update stuff for this marker
+
+        //theMarkers[0]?.hideInfoWindow()
+        //theMarkers[0]?.title = "test" + counter++
+        //theMarkers[0]?.showInfoWindow()
+        //markerLatLong[0] = LatLng(markerLatLong[0].latitude + 0.000001, markerLatLong[0].longitude)
+        //theMarkers[0]?.position = LatLng(markerLatLong[0].latitude, markerLatLong[0].longitude)
+        this.marker?.position = LatLng(this.markerLatLong.latitude, this.markerLatLong.longitude)
+    }
+
+    fun setNewLatLong(lat:Double, long:Double){
+        // set a new lat long for this marker
+    }
+
+    fun getCurrentLatLong(): LatLng{
+        return LatLng(this.markerLatLong.latitude,this.markerLatLong.longitude)
     }
 }
 
@@ -64,6 +96,7 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMyMapsBinding
     private lateinit var locationManager: LocationManager
+    private lateinit var overlayText: TextView
 
     private var counter: Int = 0
 
@@ -71,7 +104,7 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
     private var theMarkers: Array<Marker?> = Array(arraySize,{null})
     private var markerLatLong = Array(arraySize){ LatLng(0.0,0.0)}
 
-
+    private var friendMarkersArr: MutableList<FriendMarker> = MutableList(0,{FriendMarker()})
 
 
     @SuppressLint("ServiceCast")
@@ -83,10 +116,6 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
-
-        val customLayout = LayoutInflater.from(this).inflate(R.layout.custom_info_window, null)
-
-
 
 
         // Initialize the location manager
@@ -134,31 +163,44 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         val resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, width, height, false)
         val markerIconScaled = BitmapDescriptorFactory.fromBitmap(resizedBitmap)
 
-
         val success = mMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style))
-        //mMap.mapType = GoogleMap.MAP_TYPE_TERRAIN;
-        // Add a marker in Sydney and move the camera
+
         //markerLatLong[0] = LatLng(34.7335757, -85.2239801)
-        markerLatLong[0] = LatLng(34.0476818,-84.6960141)
-        //var marker = mMap.addMarker(MarkerOptions()
-        theMarkers[0] = mMap.addMarker(MarkerOptions()
-            .position(markerLatLong[0])
-            .title("Marker $counter")
-            .visible(true))
-        theMarkers[0]?.showInfoWindow()
-        theMarkers[0]?.setIcon(markerIconScaled)
+        //markerLatLong[0] = LatLng(34.0476818,-84.6960141)
+
+        friendMarkersArr.add(FriendMarker())
+        friendMarkersArr[0].createMarker(34.7335757, -85.2239801, mMap, markerIconScaled)
+
+        // link signal indicator text overlay
+        overlayText = findViewById(R.id.textView1)
+
         //mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myHome, 15f))
-        mMap.setOnCameraMoveListener { updateAllMarkers() }
-        //showCustomWindow("test title", "test snippet", this)
+
+        mMap.setOnCameraMoveListener { updateAllElements() }
     }
 
-    private fun updateAllMarkers(){
-        theMarkers[0]?.hideInfoWindow()
-        theMarkers[0]?.title = "test" + counter++
-        theMarkers[0]?.showInfoWindow()
-        markerLatLong[0] = LatLng(markerLatLong[0].latitude + 0.000001, markerLatLong[0].longitude)
-        theMarkers[0]?.position = LatLng(markerLatLong[0].latitude, markerLatLong[0].longitude)
+    private fun updateAllElements(){
+        //theMarkers[0]?.hideInfoWindow()
+        //theMarkers[0]?.title = "test" + counter++
+        //theMarkers[0]?.showInfoWindow()
+        //markerLatLong[0] = LatLng(markerLatLong[0].latitude + 0.000001, markerLatLong[0].longitude)
+        //theMarkers[0]?.position = LatLng(markerLatLong[0].latitude, markerLatLong[0].longitude)
 
+        // update all the friendMarkers
+        for (friend in friendMarkersArr){
+            friend.update()
+        }
+
+        // TODO:
+        //  Once all the markers are updated, create a virtual box around all the markers and users position. Then expand it
+        //  by 5% on each side. This represents the zoom level that needs to be calculated and set. The view should be centered on this box.
+
+        // update the signal indicator
+        val text = "Signal: Good"
+        val spannable = SpannableString(text)
+        val colorSpan = ForegroundColorSpan(Color.GREEN)
+        spannable.setSpan(colorSpan, 8,12, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
+        overlayText.text = spannable
     }
 
     private val LOCATION_PERMISSION_REQUEST_CODE = 1
@@ -209,19 +251,3 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         }
     }
 }
-
-//fun showCustomWindow(title: String, snippet: String, context: Context) {
-//    val dialogView = LayoutInflater.from(context).inflate(R.layout.custom_info_window, null)
-//
-//    val titleTextView = dialogView.findViewById<TextView>(R.id.titleTextView)
-//    val snippetTextView = dialogView.findViewById<TextView>(R.id.snippetTextView)
-//    //titleTextView.
-//
-//    titleTextView.text = title
-//    snippetTextView.text = snippet
-//
-//    //val dialog = Dialog(context)
-//    //dialog.setContentView(dialogView)
-//    //dialog.show()
-//}
-
