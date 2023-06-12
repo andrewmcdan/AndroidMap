@@ -31,7 +31,7 @@
         <activity
             android:name=".MyMapsActivity"
             android:exported="true"
-            android:label="Hello world app">
+            android:label="Tactical Mapping">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

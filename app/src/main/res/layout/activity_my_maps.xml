@@ -7,9 +7,39 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MyMapsActivity" >
+
     <TextView
         android:id="@+id/textView1"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="TextView1" />
+        android:layout_height="wrap_content" />
+
+    <Button
+        android:id="@+id/menuButton"
+        android:layout_width="65sp"
+        android:layout_height="65sp"
+        android:layout_gravity="bottom"
+        android:text="Menu"
+        android:visibility="visible" />
+    <LinearLayout
+        android:id="@+id/menuContainer"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/menuExitButton"
+            android:layout_width="wrap_content"
+            android:layout_height="50sp"
+            android:text="Exit Menu" />
+        <TextView
+            android:id="@+id/myNameTextPrompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Enter your marker name:"/>
+
+        <EditText
+            android:id="@+id/myNameTextInput"
+            android:layout_width="match_parent"
+            android:layout_height="50sp" />
+    </LinearLayout>
 </fragment>

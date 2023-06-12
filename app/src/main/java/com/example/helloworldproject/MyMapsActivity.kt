@@ -4,6 +4,7 @@ package com.example.helloworldproject
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.Dialog
 import android.content.Context
 import android.content.pm.PackageManager
@@ -23,11 +24,16 @@ import android.view.LayoutInflater
 
 import android.view.MotionEvent
 import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.core.app.ActivityCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.os.postDelayed
+import androidx.fragment.app.Fragment
 
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -45,6 +51,7 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.PolygonOptions
 import com.google.android.gms.maps.model.TileOverlayOptions
 import com.google.android.gms.maps.model.TileProvider
+import com.google.android.material.animation.DrawableAlphaProperty
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -59,6 +66,7 @@ class FriendMarker{
     private var marker : Marker? = null
     private lateinit var markerLatLong: LatLng
     private lateinit var markerName: String
+    private var alive: Boolean = false // friends that go out of range or otherwise stop reporting location are considered dead / false
 
     fun createMarker(latitude: Double, longitude: Double, map: GoogleMap, icon: BitmapDescriptor){
         markerLatLong = LatLng(latitude,longitude)
@@ -89,6 +97,13 @@ class FriendMarker{
     fun getCurrentLatLong(): LatLng{
         return LatLng(this.markerLatLong.latitude,this.markerLatLong.longitude)
     }
+
+    fun changeName(name:String){
+        markerName = name
+        this.marker?.hideInfoWindow()
+        this.marker?.title = markerName
+        this.marker?.showInfoWindow()
+    }
 }
 
 class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
@@ -97,12 +112,11 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
     private lateinit var binding: ActivityMyMapsBinding
     private lateinit var locationManager: LocationManager
     private lateinit var overlayText: TextView
-
-    private var counter: Int = 0
-
-    private val arraySize: Int = 5
-    private var theMarkers: Array<Marker?> = Array(arraySize,{null})
-    private var markerLatLong = Array(arraySize){ LatLng(0.0,0.0)}
+    private lateinit var menuButton: Button
+    private lateinit var theMenu: LinearLayout
+    private lateinit var menuExitButton: Button
+    private lateinit var myNameTextInput: EditText
+    private lateinit var myNamePrompt: TextView
 
     private var friendMarkersArr: MutableList<FriendMarker> = MutableList(0,{FriendMarker()})
 
@@ -174,6 +188,30 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         // link signal indicator text overlay
         overlayText = findViewById(R.id.textView1)
 
+        // Build the menu
+        menuButton = findViewById(R.id.menuButton)
+        theMenu = findViewById(R.id.menuContainer)
+        menuExitButton = findViewById(R.id.menuExitButton)
+        myNameTextInput = findViewById(R.id.myNameTextInput)
+        myNamePrompt = findViewById(R.id.myNameTextPrompt)
+
+        menuButton.setOnClickListener{
+            menuButton.visibility = View.GONE
+            theMenu.visibility = View.VISIBLE
+        }
+
+        menuExitButton.setOnClickListener{
+            menuButton.visibility = View.VISIBLE
+            theMenu.visibility = View.GONE
+            hideKeyboard() // Not working
+            // TODO:
+            //  Instead of changing this friend marker, this should update the BT module
+            friendMarkersArr[0].changeName(myNameTextInput.text.toString())
+        }
+        theMenu.setBackgroundColor(Color.GRAY)
+        theMenu.visibility = View.GONE
+
+
         //mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myHome, 15f))
 
         mMap.setOnCameraMoveListener { updateAllElements() }
@@ -202,6 +240,8 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         spannable.setSpan(colorSpan, 8,12, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
         overlayText.text = spannable
     }
+
+
 
     private val LOCATION_PERMISSION_REQUEST_CODE = 1
 
@@ -249,5 +289,17 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
             // Register for location updates
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, locationListener)
         }
+    }
+
+    fun Fragment.hideKeyboard() {
+        view?.let { activity?.hideKeyboard(it) }
+    }
+    fun Activity.hideKeyboard() {
+        hideKeyboard(currentFocus ?: View(this))
+    }
+
+    fun Context.hideKeyboard(view: View) {
+        val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+        inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
     }
 }
