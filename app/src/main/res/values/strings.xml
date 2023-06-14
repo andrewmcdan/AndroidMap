@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">Hello World Project</string>
     <string name="title_activity_my_maps">MyMapsActivity</string>
+    <string
+        name="enable_autoZoom"
+        >Enable Auto Zoom</string>
+    <string
+        name="disable_autoZoom"
+        >Disable Auto Zoom</string>
 </resources>

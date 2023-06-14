@@ -1,11 +1,7 @@
-
-
 package com.example.helloworldproject
-
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.Dialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -14,84 +10,61 @@ import android.graphics.Color
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.text.SpannableString
 import android.text.Spanned
+import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
-import android.view.LayoutInflater
-
-import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.graphics.createBitmap
-import androidx.core.os.postDelayed
 import androidx.fragment.app.Fragment
-
+import com.example.helloworldproject.databinding.ActivityMyMapsBinding
+import com.google.android.gms.maps.CameraUpdate
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
-import com.example.helloworldproject.databinding.ActivityMyMapsBinding
-import com.google.android.gms.maps.CameraUpdate
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.Marker
-import com.google.android.gms.maps.model.PolygonOptions
-import com.google.android.gms.maps.model.TileOverlayOptions
-import com.google.android.gms.maps.model.TileProvider
-import com.google.android.material.animation.DrawableAlphaProperty
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.google.android.gms.maps.model.MarkerOptions
+import kotlin.random.Random
+
 
 // TODO:
 //  this class needs to be fleshed out and then used as the object to
 //  the data for each friends' marker
-class FriendMarker{
-    private var marker : Marker? = null
-    private lateinit var markerLatLong: LatLng
+class FriendMarker(latitude: Double, longitude: Double, map: GoogleMap, icon: BitmapDescriptor, invisIcon: BitmapDescriptor){
+    private var markerLatLong = LatLng(latitude,longitude)
+    private var normalIcon: BitmapDescriptor = icon
+    private var invisIcon: BitmapDescriptor = invisIcon
+    private var marker : Marker? = map.addMarker(MarkerOptions()
+        .position(markerLatLong)
+        .title("Marker")
+        .visible(true).icon(icon))
     private lateinit var markerName: String
     private var alive: Boolean = false // friends that go out of range or otherwise stop reporting location are considered dead / false
-
-    fun createMarker(latitude: Double, longitude: Double, map: GoogleMap, icon: BitmapDescriptor){
-        markerLatLong = LatLng(latitude,longitude)
-
-        marker = map.addMarker(MarkerOptions()
-            .position(markerLatLong)
-            .title("Marker")
-            .visible(true))
-        marker?.showInfoWindow()
-        marker?.setIcon(icon)
-    }
+    private val randy: Random = Random
+    private var id: Int = randy.nextInt()
 
     fun update(){
         // do all the update stuff for this marker
-
-        //theMarkers[0]?.hideInfoWindow()
-        //theMarkers[0]?.title = "test" + counter++
-        //theMarkers[0]?.showInfoWindow()
-        //markerLatLong[0] = LatLng(markerLatLong[0].latitude + 0.000001, markerLatLong[0].longitude)
-        //theMarkers[0]?.position = LatLng(markerLatLong[0].latitude, markerLatLong[0].longitude)
-        this.marker?.position = LatLng(this.markerLatLong.latitude, this.markerLatLong.longitude)
+        this.marker?.position = markerLatLong
     }
 
     fun setNewLatLong(lat:Double, long:Double){
         // set a new lat long for this marker
+        markerLatLong = LatLng(lat,long)
     }
 
     fun getCurrentLatLong(): LatLng{
@@ -103,6 +76,15 @@ class FriendMarker{
         this.marker?.hideInfoWindow()
         this.marker?.title = markerName
         this.marker?.showInfoWindow()
+    }
+
+    fun disableMarkerIcon(){
+        marker?.setIcon(invisIcon) // Set the transparent icon
+        marker?.hideInfoWindow()
+    }
+    fun enableMarkerIcon(){
+        marker?.setIcon(normalIcon) // Set the normal icon
+        marker?.showInfoWindow()
     }
 }
 
@@ -117,8 +99,17 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
     private lateinit var menuExitButton: Button
     private lateinit var myNameTextInput: EditText
     private lateinit var myNamePrompt: TextView
+    private lateinit var autoZoomEnableButton: Button
+    private var friendMarkersArr = mutableListOf<FriendMarker>()
 
-    private var friendMarkersArr: MutableList<FriendMarker> = MutableList(0,{FriendMarker()})
+    private var autoZoomEnabled: Boolean = true
+
+    private val updateHandler = Handler()
+
+    private val runnable = Runnable {
+        updateAllElements()
+    }
+
 
 
     @SuppressLint("ServiceCast")
@@ -130,7 +121,6 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
-
 
         // Initialize the location manager
         locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
@@ -170,20 +160,31 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         mMap.uiSettings.isMyLocationButtonEnabled = true
 
         // import marker icon and scale it
-        val markerIcon = BitmapDescriptorFactory.fromResource(R.drawable.icon)
         val width = 35 // desired width in pixels
         val height = 50 // desired height in pixels
         val originalBitmap = BitmapFactory.decodeResource(resources, R.drawable.icon)
-        val resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, width, height, false)
+        var resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, width, height, false)
         val markerIconScaled = BitmapDescriptorFactory.fromBitmap(resizedBitmap)
+        resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 1, 1, false)
+        val markerIconScaledZero = BitmapDescriptorFactory.fromBitmap((resizedBitmap))
 
         val success = mMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style))
 
-        //markerLatLong[0] = LatLng(34.7335757, -85.2239801)
-        //markerLatLong[0] = LatLng(34.0476818,-84.6960141)
+        var latitude0 = 0.0
+        var longitude0 = 0.0
+        if (locationManager != null) {
+            var location = locationManager
+                .getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if (location != null) {
+                latitude0 = location.latitude;
+                longitude0 = location.longitude;
+            }
+        }
 
-        friendMarkersArr.add(FriendMarker())
-        friendMarkersArr[0].createMarker(34.7335757, -85.2239801, mMap, markerIconScaled)
+
+        friendMarkersArr.add(FriendMarker(latitude0, longitude0, mMap, markerIconScaled, markerIconScaledZero))
+        friendMarkersArr.add(FriendMarker(34.7335757, -85.2239801, mMap, markerIconScaled, markerIconScaledZero))
+        friendMarkersArr[0].disableMarkerIcon()
 
         // link signal indicator text overlay
         overlayText = findViewById(R.id.textView1)
@@ -194,10 +195,21 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         menuExitButton = findViewById(R.id.menuExitButton)
         myNameTextInput = findViewById(R.id.myNameTextInput)
         myNamePrompt = findViewById(R.id.myNameTextPrompt)
+        autoZoomEnableButton = findViewById(R.id.menuEnableAutoZoom)
+
+        autoZoomEnableButton.text = getString(R.string.disable_autoZoom)
 
         menuButton.setOnClickListener{
             menuButton.visibility = View.GONE
             theMenu.visibility = View.VISIBLE
+        }
+
+        autoZoomEnableButton.setOnClickListener{
+            autoZoomEnabled = !autoZoomEnabled
+            if(autoZoomEnabled)
+                autoZoomEnableButton.text = getString(R.string.disable_autoZoom)
+            if(!autoZoomEnabled)
+                autoZoomEnableButton.text = getString(R.string.enable_autoZoom)
         }
 
         menuExitButton.setOnClickListener{
@@ -211,19 +223,12 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         theMenu.setBackgroundColor(Color.GRAY)
         theMenu.visibility = View.GONE
 
-
-        //mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myHome, 15f))
-
-        mMap.setOnCameraMoveListener { updateAllElements() }
+        // call the update function in 1 second
+        updateHandler.postDelayed(runnable, 1000)
     }
 
-    private fun updateAllElements(){
-        //theMarkers[0]?.hideInfoWindow()
-        //theMarkers[0]?.title = "test" + counter++
-        //theMarkers[0]?.showInfoWindow()
-        //markerLatLong[0] = LatLng(markerLatLong[0].latitude + 0.000001, markerLatLong[0].longitude)
-        //theMarkers[0]?.position = LatLng(markerLatLong[0].latitude, markerLatLong[0].longitude)
 
+    private fun updateAllElements(){
         // update all the friendMarkers
         for (friend in friendMarkersArr){
             friend.update()
@@ -232,13 +237,26 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         // TODO:
         //  Once all the markers are updated, create a virtual box around all the markers and users position. Then expand it
         //  by 5% on each side. This represents the zoom level that needs to be calculated and set. The view should be centered on this box.
+        var builder = LatLngBounds.builder()
+        for(f in friendMarkersArr)
+            builder.include(f.getCurrentLatLong())
+        var bounds: LatLngBounds = builder.build()
+        var update: CameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds,100)
+        if(autoZoomEnabled)
+            mMap.animateCamera(update)
+
 
         // update the signal indicator
         val text = "Signal: Good"
         val spannable = SpannableString(text)
         val colorSpan = ForegroundColorSpan(Color.GREEN)
+        val colorSpan1 = BackgroundColorSpan(Color.BLACK)
         spannable.setSpan(colorSpan, 8,12, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
+        spannable.setSpan(colorSpan1,0, 12, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
         overlayText.text = spannable
+
+        // call this function again in 1 second
+        updateHandler.postDelayed(runnable, 1000)
     }
 
 
@@ -275,13 +293,15 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
     private val locationListener: LocationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             val currentLatLng = LatLng(location.latitude, location.longitude)
-            mMap.animateCamera(CameraUpdateFactory.newLatLng(currentLatLng))
+            //mMap.animateCamera(CameraUpdateFactory.newLatLng(currentLatLng))
+            friendMarkersArr[0].setNewLatLong(location.latitude,location.longitude)
+            //friendMarkersArr[0].update()
+            //updateAllElements()
         }
 
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
             // Handle status changes if needed
         }
-
     }
 
     private fun enableLocation() {
@@ -291,15 +311,18 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         }
     }
 
-    fun Fragment.hideKeyboard() {
+    private fun Fragment.hideKeyboard() {
         view?.let { activity?.hideKeyboard(it) }
     }
-    fun Activity.hideKeyboard() {
+    private fun Activity.hideKeyboard() {
         hideKeyboard(currentFocus ?: View(this))
     }
 
-    fun Context.hideKeyboard(view: View) {
+    private fun Context.hideKeyboard(view: View) {
         val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
         inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
     }
 }
+
+
+
