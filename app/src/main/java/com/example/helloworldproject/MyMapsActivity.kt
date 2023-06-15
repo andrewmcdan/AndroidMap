@@ -9,13 +9,11 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
-import android.location.GpsStatus.NmeaListener
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
-import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
 import android.text.SpannableString
@@ -35,7 +33,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import com.example.helloworldproject.databinding.ActivityMyMapsBinding
-import com.google.android.gms.maps.CameraUpdate
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -53,14 +50,15 @@ import kotlin.random.Random
 
 
 // Object that maintains data about a friends location
-class FriendMarker(latitude: Double, longitude: Double, map: GoogleMap, icon: BitmapDescriptor, invisIcon: BitmapDescriptor){
+class FriendMarker(latitude: Double, longitude: Double, map: GoogleMap,
+                   private var normalIcon: BitmapDescriptor,
+                   private var invisIcon: BitmapDescriptor
+){
     private var markerLatLong = LatLng(latitude,longitude)
-    private var normalIcon: BitmapDescriptor = icon
-    private var invisIcon: BitmapDescriptor = invisIcon
     private var marker : Marker? = map.addMarker(MarkerOptions()
         .position(markerLatLong)
         .title("Marker")
-        .visible(true).icon(icon))
+        .visible(true).icon(normalIcon))
     private lateinit var markerName: String
     private var alive: Boolean = false // friends that go out of range or otherwise stop reporting location are considered dead / false
     private val randy: Random = Random
@@ -200,17 +198,15 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
         resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 1, 1, false)
         val markerIconScaledZero = BitmapDescriptorFactory.fromBitmap((resizedBitmap))
 
-        val success = mMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style))
+        mMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style))
 
         var latitude0 = 0.0
         var longitude0 = 0.0
-        if (locationManager != null) {
-            var location = locationManager
-                .getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if (location != null) {
-                latitude0 = location.latitude;
-                longitude0 = location.longitude;
-            }
+        val location = locationManager
+            .getLastKnownLocation(LocationManager.GPS_PROVIDER)
+        if (location != null) {
+            latitude0 = location.latitude
+            longitude0 = location.longitude
         }
 
         // create friendMarker #0. This represents *this device.
@@ -310,7 +306,7 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
 
         // if enabled, center the viewport on the bounding box that includes all friendMarkers and,
         // if enabled, zoom into bounding box, not to exceed max zoom set above
-        var builder = LatLngBounds.builder()
+        val builder = LatLngBounds.builder()
         for(f in friendMarkersArr)
             builder.include(f.getCurrentLatLong())
         if(autoZoomEnabled && autoCenterEnabled)
@@ -375,10 +371,10 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
     }
 
     private fun debugWriteLine(chars:String){
-        runOnUiThread(Runnable {
+        runOnUiThread {
             debugSerialOutput += chars
             debugSerialOutputTextView.text = debugSerialOutput
-        })
+        }
 
     }
     override fun onDeviceInfoAvailable(){
