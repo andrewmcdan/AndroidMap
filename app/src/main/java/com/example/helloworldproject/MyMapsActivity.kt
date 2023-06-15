@@ -101,7 +101,6 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
     private lateinit var binding: ActivityMyMapsBinding
     private lateinit var locationManager: LocationManager
 
-
     // UI elements
     private lateinit var overlayText: TextView
     private lateinit var menuButton: Button
@@ -360,15 +359,15 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
     override fun onResume() {
         super.onResume()
         checkLocationPermission()
-        //uart.registerCallback(this)
-        //uart.connectFirstAvailable()
+        uart.registerCallback(this)
+        uart.connectFirstAvailable()
     }
 
     override fun onPause() {
         super.onPause()
         locationManager.removeUpdates(locationListener)
-        //uart.unregisterCallback(this)
-        //uart.disconnect()
+        uart.unregisterCallback(this)
+        uart.disconnect()
     }
 
     private fun debugWriteLine(chars:String){
@@ -400,7 +399,7 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
 
     override fun onConnected(uart: BluetoothLeUart?) {
         TODO("Not yet implemented")
-        //debugWriteLine(uart?.deviceInfo!!)
+        debugWriteLine(uart?.deviceInfo!!)
     }
 
     private val locationListener: LocationListener = object : LocationListener {
