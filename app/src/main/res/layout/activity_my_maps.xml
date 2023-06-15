@@ -21,12 +21,12 @@
             android:id="@+id/zoomButtonsPlus"
             android:layout_width="50sp"
             android:layout_height="50sp"
-            android:text="+"/>
+            android:text="@string/aPlusSign"/>
         <Button
             android:id="@+id/zoomButtonsMinus"
             android:layout_width="50sp"
             android:layout_height="50sp"
-            android:text="-"/>
+            android:text="@string/aMinusSign"/>
     </LinearLayout>
 
     <Button
@@ -34,7 +34,7 @@
         android:layout_width="65sp"
         android:layout_height="65sp"
         android:layout_gravity="bottom"
-        android:text="Menu"
+        android:text="@string/theWordMenu"
         android:visibility="visible" />
     <LinearLayout
         android:id="@+id/menuContainer"
@@ -46,17 +46,20 @@
             android:id="@+id/menuExitButton"
             android:layout_width="wrap_content"
             android:layout_height="50sp"
-            android:text="Exit Menu" />
+            android:text="@string/exit_menuButtonText" />
         <TextView
             android:id="@+id/myNameTextPrompt"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Enter your marker name:"/>
+            android:text="@string/myNameTextPromptString"/>
 
         <EditText
             android:id="@+id/myNameTextInput"
             android:layout_width="match_parent"
-            android:layout_height="50sp" />
+            android:layout_height="50sp"
+            android:inputType="text"
+            android:hint="@string/marker_nameString"
+            android:autofillHints="name"/>
         <Button
             android:id="@+id/menuEnableAutoZoom"
             android:layout_width="wrap_content"

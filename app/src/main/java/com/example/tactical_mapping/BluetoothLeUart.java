@@ -1,4 +1,4 @@
-package com.example.helloworldproject;
+package com.example.tactical_mapping;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -29,7 +29,7 @@ public class BluetoothLeUart extends BluetoothGattCallback implements BluetoothA
     // UUID for the UART BTLE client characteristic which is necessary for notifications.
     public static UUID CLIENT_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
-    // UUIDs for the Device Information service and associated characeristics.
+    // UUIDs for the Device Information service and associated characteristics.
     public static UUID DIS_UUID       = UUID.fromString("0000180a-0000-1000-8000-00805f9b34fb");
     public static UUID DIS_MANUF_UUID = UUID.fromString("00002a29-0000-1000-8000-00805f9b34fb");
     public static UUID DIS_MODEL_UUID = UUID.fromString("00002a24-0000-1000-8000-00805f9b34fb");

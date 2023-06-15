@@ -1,4 +1,4 @@
-package com.example.helloworldproject
+package com.example.tactical_mapping
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -32,7 +32,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
-import com.example.helloworldproject.databinding.ActivityMyMapsBinding
+import com.example.tactical_mapping.databinding.ActivityMyMapsBinding
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback

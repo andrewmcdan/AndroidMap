@@ -1,4 +1,4 @@
-package com.example.helloworldproject
+package com.example.tactical_mapping
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

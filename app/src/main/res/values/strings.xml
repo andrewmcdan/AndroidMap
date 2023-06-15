@@ -1,22 +1,16 @@
 <resources>
     <string name="app_name">Hello World Project</string>
     <string name="title_activity_my_maps">MyMapsActivity</string>
-    <string
-        name="enable_autoZoom"
-        >Enable Auto Zoom</string>
-    <string
-        name="disable_autoZoom"
-        >Disable Auto Zoom</string>
-    <string
-        name="enable_autoCenter"
-        >Enable Auto Center</string>
-    <string
-        name="disable_autoCenter"
-        >Disable Auto Center</string>
-    <string
-        name="enable_oneKlickCircle"
-        >Enable 1Km Circle</string>
-    <string
-        name="disable_oneKlickCircle"
-        >Disable 1Km Circle</string>
+    <string name="enable_autoZoom">Enable Auto Zoom</string>
+    <string name="disable_autoZoom">Disable Auto Zoom</string>
+    <string name="enable_autoCenter">Enable Auto Center</string>
+    <string name="disable_autoCenter">Disable Auto Center</string>
+    <string name="enable_oneKlickCircle">Enable 1Km Circle</string>
+    <string name="disable_oneKlickCircle">Disable 1Km Circle</string>
+    <string name="myNameTextPromptString">Enter your marker name:</string>
+    <string name="exit_menuButtonText">Exit Menu</string>
+    <string name="theWordMenu">Menu</string>
+    <string name="aMinusSign">-</string>
+    <string name="aPlusSign">+</string>
+    <string name="marker_nameString">Marker Name</string>
 </resources>

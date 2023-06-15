@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace 'com.example.helloworldproject'
+    namespace 'com.example.tactical_mapping'
     compileSdk 33
 
     defaultConfig {

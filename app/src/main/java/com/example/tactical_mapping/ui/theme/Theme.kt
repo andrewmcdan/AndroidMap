@@ -1,4 +1,4 @@
-package com.example.helloworldproject.ui.theme
+package com.example.tactical_mapping.ui.theme
 
 import android.app.Activity
 import android.os.Build
