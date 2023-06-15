@@ -11,23 +11,6 @@
         android:id="@+id/textView1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
-    <LinearLayout
-        android:id="@+id/zoomButtonsCont"
-        android:layout_width="50sp"
-        android:layout_height="100sp"
-        android:orientation="vertical"
-        android:layout_gravity="bottom|end">
-        <Button
-            android:id="@+id/zoomButtonsPlus"
-            android:layout_width="50sp"
-            android:layout_height="50sp"
-            android:text="+"/>
-        <Button
-            android:id="@+id/zoomButtonsMinus"
-            android:layout_width="50sp"
-            android:layout_height="50sp"
-            android:text="-"/>
-    </LinearLayout>
 
     <Button
         android:id="@+id/menuButton"
@@ -61,19 +44,5 @@
             android:id="@+id/menuEnableAutoZoom"
             android:layout_width="wrap_content"
             android:layout_height="50sp" />
-        <Button
-            android:id="@+id/menuEnableAutoCenter"
-            android:layout_width="wrap_content"
-            android:layout_height="50sp" />
-        <Button
-            android:id="@+id/menuEnableOneKlickCircle"
-            android:layout_width="wrap_content"
-            android:layout_height="50sp" />
-        <TextView
-            android:id="@+id/serialOutputTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:scrollbars="vertical"/>
-
     </LinearLayout>
 </fragment>
