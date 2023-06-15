@@ -359,15 +359,15 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
     override fun onResume() {
         super.onResume()
         checkLocationPermission()
-        uart.registerCallback(this)
-        uart.connectFirstAvailable()
+        //uart.registerCallback(this)
+        //uart.connectFirstAvailable()
     }
 
     override fun onPause() {
         super.onPause()
         locationManager.removeUpdates(locationListener)
-        uart.unregisterCallback(this)
-        uart.disconnect()
+        //uart.unregisterCallback(this)
+        //uart.disconnect()
     }
 
     private fun debugWriteLine(chars:String){
