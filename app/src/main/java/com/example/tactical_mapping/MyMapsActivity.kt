@@ -46,6 +46,7 @@ import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import kotlin.math.sign
 import kotlin.random.Random
 
 
@@ -60,13 +61,23 @@ class FriendMarker(latitude: Double, longitude: Double, map: GoogleMap,
         .title("Marker")
         .visible(true).icon(normalIcon))
     private lateinit var markerName: String
-    private var alive: Boolean = false // friends that go out of range or otherwise stop reporting location are considered dead / false
+    var alive: Boolean = true// friends that go out of range or otherwise stop reporting location are considered dead / false
     private val randy: Random = Random
     private var id: Int = randy.nextInt()
 
     fun update(){
         // do all the update stuff for this marker
         this.marker?.position = markerLatLong
+    }
+
+    fun markMarkerAsDead(){
+        this.alive = false
+        this.disableMarkerIcon()
+    }
+
+    fun markMarkerAsAlive(){
+        this.alive = true
+        this.enableMarkerIcon()
     }
 
     fun setNewLatLong(lat:Double, long:Double){
@@ -123,6 +134,7 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
     private var autoZoomEnabled: Boolean = true
     private var autoCenterEnabled: Boolean = true
     private var oneKlickCircleEnabled: Boolean = true
+    private var signalState: Int = 0
 
     private var debugSerialOutput: String = ""
 
@@ -213,6 +225,7 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
         friendMarkersArr.add(FriendMarker(latitude0, longitude0, mMap, markerIconScaled, markerIconScaledZero))
         friendMarkersArr[0].disableMarkerIcon()
 
+        // TODO: Remove this temporary marker
         // temp for debugging
         friendMarkersArr.add(FriendMarker(latitude0, longitude0, mMap, markerIconScaled, markerIconScaledZero))
 
@@ -308,7 +321,8 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
         // if enabled, zoom into bounding box, not to exceed max zoom set above
         val builder = LatLngBounds.builder()
         for(f in friendMarkersArr)
-            builder.include(f.getCurrentLatLong())
+            if(f.alive)
+                builder.include(f.getCurrentLatLong())
         if(autoZoomEnabled && autoCenterEnabled)
             mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(builder.build(),100))
         else if(autoCenterEnabled)
@@ -324,9 +338,35 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
 
         // update the signal indicator
         // TODO: get state of signal form BT dev
-        val signalIndText = "Signal: Good"
+        var signalIndText = "Signal: "
+        var colorSpan = ForegroundColorSpan(Color.RED)
+        when(signalState){
+            0->{
+                signalIndText += "Disconnected"
+                colorSpan = ForegroundColorSpan(Color.RED)
+            }
+            1->{
+                signalIndText += "Very Poor"
+                colorSpan = ForegroundColorSpan(Color.RED)
+            }
+            2->{
+                signalIndText += "Poor"
+                colorSpan = ForegroundColorSpan(Color.rgb(250, 114, 35))
+            }
+            3->{
+                signalIndText += "Okay"
+                colorSpan = ForegroundColorSpan(Color.YELLOW)
+            }
+            4->{
+                signalIndText += "Good"
+                colorSpan = ForegroundColorSpan(Color.GREEN)
+            }
+            5->{
+                signalIndText += "Strong"
+                colorSpan = ForegroundColorSpan(Color.BLUE)
+            }
+        }
         val spannable = SpannableString(signalIndText)
-        val colorSpan = ForegroundColorSpan(Color.GREEN)
         val colorSpan1 = BackgroundColorSpan(Color.BLACK)
         spannable.setSpan(colorSpan, 8,signalIndText.length, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
         spannable.setSpan(colorSpan1,0, signalIndText.length, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
@@ -335,6 +375,8 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
         // call this function again in 1 second
         updateHandler.postDelayed(runnable, 1000)
     }
+
+
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun checkLocationPermission(){
