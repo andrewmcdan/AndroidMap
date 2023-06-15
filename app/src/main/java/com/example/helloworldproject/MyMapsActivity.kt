@@ -2,6 +2,8 @@ package com.example.helloworldproject
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGattCharacteristic
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -10,29 +12,35 @@ import android.graphics.Color
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.text.SpannableString
 import android.text.Spanned
+import android.text.method.ScrollingMovementMethod
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.view.View
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import com.example.helloworldproject.databinding.ActivityMyMapsBinding
-import com.google.android.gms.maps.CameraUpdate
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.Circle
+import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
@@ -41,17 +49,16 @@ import com.google.android.gms.maps.model.MarkerOptions
 import kotlin.random.Random
 
 
-// TODO:
-//  this class needs to be fleshed out and then used as the object to
-//  the data for each friends' marker
-class FriendMarker(latitude: Double, longitude: Double, map: GoogleMap, icon: BitmapDescriptor, invisIcon: BitmapDescriptor){
+// Object that maintains data about a friends location
+class FriendMarker(latitude: Double, longitude: Double, map: GoogleMap,
+                   private var normalIcon: BitmapDescriptor,
+                   private var invisIcon: BitmapDescriptor
+){
     private var markerLatLong = LatLng(latitude,longitude)
-    private var normalIcon: BitmapDescriptor = icon
-    private var invisIcon: BitmapDescriptor = invisIcon
     private var marker : Marker? = map.addMarker(MarkerOptions()
         .position(markerLatLong)
         .title("Marker")
-        .visible(true).icon(icon))
+        .visible(true).icon(normalIcon))
     private lateinit var markerName: String
     private var alive: Boolean = false // friends that go out of range or otherwise stop reporting location are considered dead / false
     private val randy: Random = Random
@@ -88,23 +95,43 @@ class FriendMarker(latitude: Double, longitude: Double, map: GoogleMap, icon: Bi
     }
 }
 
-class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
-
+class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.Callback{
+    // boilerplate vars
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMyMapsBinding
     private lateinit var locationManager: LocationManager
+
+
+    // UI elements
     private lateinit var overlayText: TextView
     private lateinit var menuButton: Button
     private lateinit var theMenu: LinearLayout
     private lateinit var menuExitButton: Button
+    private lateinit var zoomPlus: Button
+    private lateinit var zoomMinus: Button
     private lateinit var myNameTextInput: EditText
     private lateinit var myNamePrompt: TextView
     private lateinit var autoZoomEnableButton: Button
+    private lateinit var autoCenterEnableButton: Button
+    private lateinit var menuEnableOneKlickCircle: Button
+    private lateinit var debugSerialOutputTextView:TextView
+
+    private val LOCATION_PERMISSION_REQUEST_CODE = 1
+
     private var friendMarkersArr = mutableListOf<FriendMarker>()
 
+    // state trackers
     private var autoZoomEnabled: Boolean = true
+    private var autoCenterEnabled: Boolean = true
+    private var oneKlickCircleEnabled: Boolean = true
 
-    private val updateHandler = Handler()
+    private var debugSerialOutput: String = ""
+
+    private lateinit var oneKlickCircle: Circle
+
+    private lateinit var uart: BluetoothLeUart
+
+    private val updateHandler = Handler(Looper.myLooper()!!)
 
     private val runnable = Runnable {
         updateAllElements()
@@ -124,6 +151,8 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
 
         // Initialize the location manager
         locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        uart = BluetoothLeUart(applicationContext)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     /**
@@ -157,7 +186,9 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
             return
         }
         mMap.isMyLocationEnabled = true
-        mMap.uiSettings.isMyLocationButtonEnabled = true
+        mMap.uiSettings.isMyLocationButtonEnabled = false
+        mMap.setMaxZoomPreference(18.0f)
+
 
         // import marker icon and scale it
         val width = 35 // desired width in pixels
@@ -168,26 +199,44 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 1, 1, false)
         val markerIconScaledZero = BitmapDescriptorFactory.fromBitmap((resizedBitmap))
 
-        val success = mMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style))
+        mMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style))
 
         var latitude0 = 0.0
         var longitude0 = 0.0
-        if (locationManager != null) {
-            var location = locationManager
-                .getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if (location != null) {
-                latitude0 = location.latitude;
-                longitude0 = location.longitude;
-            }
+        val location = locationManager
+            .getLastKnownLocation(LocationManager.GPS_PROVIDER)
+        if (location != null) {
+            latitude0 = location.latitude
+            longitude0 = location.longitude
         }
 
-
+        // create friendMarker #0. This represents *this device.
         friendMarkersArr.add(FriendMarker(latitude0, longitude0, mMap, markerIconScaled, markerIconScaledZero))
-        friendMarkersArr.add(FriendMarker(34.7335757, -85.2239801, mMap, markerIconScaled, markerIconScaledZero))
         friendMarkersArr[0].disableMarkerIcon()
+
+        // temp for debugging
+        friendMarkersArr.add(FriendMarker(latitude0, longitude0, mMap, markerIconScaled, markerIconScaledZero))
+
+        // create a red circle with radius of 1km around the users location.
+        oneKlickCircle = mMap.addCircle(CircleOptions()
+            .center(friendMarkersArr[0].getCurrentLatLong())
+            .radius(1000.0)
+            .strokeColor(Color.RED)
+            .strokeWidth(1.0f)
+            .fillColor(Color.TRANSPARENT))
 
         // link signal indicator text overlay
         overlayText = findViewById(R.id.textView1)
+
+        // build the zoom adjust buttons
+        zoomPlus = findViewById(R.id.zoomButtonsPlus)
+        zoomMinus = findViewById(R.id.zoomButtonsMinus)
+        zoomPlus.setOnClickListener{
+            mMap.animateCamera(CameraUpdateFactory.zoomBy(1.0f))
+        }
+        zoomMinus.setOnClickListener{
+            mMap.animateCamera(CameraUpdateFactory.zoomBy(-1.0f))
+        }
 
         // Build the menu
         menuButton = findViewById(R.id.menuButton)
@@ -196,8 +245,14 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         myNameTextInput = findViewById(R.id.myNameTextInput)
         myNamePrompt = findViewById(R.id.myNameTextPrompt)
         autoZoomEnableButton = findViewById(R.id.menuEnableAutoZoom)
+        autoCenterEnableButton = findViewById(R.id.menuEnableAutoCenter)
+        menuEnableOneKlickCircle = findViewById(R.id.menuEnableOneKlickCircle)
+        debugSerialOutputTextView = findViewById(R.id.serialOutputTextView)
+        debugSerialOutputTextView.movementMethod = ScrollingMovementMethod()
 
         autoZoomEnableButton.text = getString(R.string.disable_autoZoom)
+        autoCenterEnableButton.text = getString(R.string.disable_autoCenter)
+        menuEnableOneKlickCircle.text = getString(R.string.disable_oneKlickCircle)
 
         menuButton.setOnClickListener{
             menuButton.visibility = View.GONE
@@ -212,12 +267,28 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
                 autoZoomEnableButton.text = getString(R.string.enable_autoZoom)
         }
 
+        autoCenterEnableButton.setOnClickListener{
+            autoCenterEnabled = !autoCenterEnabled
+            if(autoCenterEnabled)
+                autoCenterEnableButton.text = getString(R.string.disable_autoCenter)
+            if(!autoCenterEnabled)
+                autoCenterEnableButton.text = getString(R.string.enable_autoCenter)
+        }
+
+        menuEnableOneKlickCircle.setOnClickListener{
+            oneKlickCircleEnabled = !oneKlickCircleEnabled
+            if(oneKlickCircleEnabled)
+                menuEnableOneKlickCircle.text = getString(R.string.disable_oneKlickCircle)
+            if(!oneKlickCircleEnabled)
+                menuEnableOneKlickCircle.text = getString(R.string.enable_oneKlickCircle)
+        }
+
         menuExitButton.setOnClickListener{
             menuButton.visibility = View.VISIBLE
             theMenu.visibility = View.GONE
             hideKeyboard() // Not working
             // TODO:
-            //  Instead of changing this friend marker, this should update the BT module
+            //  Instead of changing this friend marker, this should update the BT module with the name
             friendMarkersArr[0].changeName(myNameTextInput.text.toString())
         }
         theMenu.setBackgroundColor(Color.GRAY)
@@ -234,35 +305,39 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
             friend.update()
         }
 
-        // TODO:
-        //  Once all the markers are updated, create a virtual box around all the markers and users position. Then expand it
-        //  by 5% on each side. This represents the zoom level that needs to be calculated and set. The view should be centered on this box.
-        var builder = LatLngBounds.builder()
+        // if enabled, center the viewport on the bounding box that includes all friendMarkers and,
+        // if enabled, zoom into bounding box, not to exceed max zoom set above
+        val builder = LatLngBounds.builder()
         for(f in friendMarkersArr)
             builder.include(f.getCurrentLatLong())
-        var bounds: LatLngBounds = builder.build()
-        var update: CameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds,100)
-        if(autoZoomEnabled)
-            mMap.animateCamera(update)
+        if(autoZoomEnabled && autoCenterEnabled)
+            mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(builder.build(),100))
+        else if(autoCenterEnabled)
+            mMap.animateCamera(CameraUpdateFactory.newLatLng(builder.build().center))
 
+        // update the 1km circle
+        if(oneKlickCircleEnabled){
+            oneKlickCircle.isVisible = true
+            oneKlickCircle.center = friendMarkersArr[0].getCurrentLatLong()
+        }else{
+            oneKlickCircle.isVisible = false
+        }
 
         // update the signal indicator
-        val text = "Signal: Good"
-        val spannable = SpannableString(text)
+        // TODO: get state of signal form BT dev
+        val signalIndText = "Signal: Good"
+        val spannable = SpannableString(signalIndText)
         val colorSpan = ForegroundColorSpan(Color.GREEN)
         val colorSpan1 = BackgroundColorSpan(Color.BLACK)
-        spannable.setSpan(colorSpan, 8,12, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
-        spannable.setSpan(colorSpan1,0, 12, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
+        spannable.setSpan(colorSpan, 8,signalIndText.length, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
+        spannable.setSpan(colorSpan1,0, signalIndText.length, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
         overlayText.text = spannable
 
         // call this function again in 1 second
         updateHandler.postDelayed(runnable, 1000)
     }
 
-
-
-    private val LOCATION_PERMISSION_REQUEST_CODE = 1
-
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun checkLocationPermission(){
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
@@ -272,6 +347,7 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -280,34 +356,66 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback{
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
         super.onResume()
         checkLocationPermission()
+        uart.registerCallback(this)
+        uart.connectFirstAvailable()
     }
 
     override fun onPause() {
         super.onPause()
         locationManager.removeUpdates(locationListener)
+        uart.unregisterCallback(this)
+        uart.disconnect()
+    }
+
+    private fun debugWriteLine(chars:String){
+        runOnUiThread {
+            debugSerialOutput += chars
+            debugSerialOutputTextView.text = debugSerialOutput
+        }
+
+    }
+    override fun onDeviceInfoAvailable(){
+        TODO("Not yet implemented")
+    }
+
+    override fun onDeviceFound(device: BluetoothDevice){
+        TODO("Not yet implemented")
+    }
+
+    override fun onReceive(uart: BluetoothLeUart, rx: BluetoothGattCharacteristic){
+        TODO("Not yet implemented")
+    }
+
+    override fun onDisconnected(uart: BluetoothLeUart?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onConnectFailed(uart: BluetoothLeUart?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onConnected(uart: BluetoothLeUart?) {
+        TODO("Not yet implemented")
+        debugWriteLine(uart?.deviceInfo!!)
     }
 
     private val locationListener: LocationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
-            val currentLatLng = LatLng(location.latitude, location.longitude)
-            //mMap.animateCamera(CameraUpdateFactory.newLatLng(currentLatLng))
             friendMarkersArr[0].setNewLatLong(location.latitude,location.longitude)
-            //friendMarkersArr[0].update()
-            //updateAllElements()
-        }
-
-        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-            // Handle status changes if needed
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun enableLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             // Register for location updates
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, locationListener)
+            locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 0L, 0f, locationListener)
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, locationListener)
         }
     }
 
