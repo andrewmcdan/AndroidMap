@@ -192,7 +192,7 @@ class MyMapsActivity : AppCompatActivity(), OnMapReadyCallback, BluetoothLeUart.
         // import marker icon and scale it
         val width = 35 // desired width in pixels
         val height = 50 // desired height in pixels
-        val originalBitmap = BitmapFactory.decodeResource(resources, R.drawable.icon)
+        val originalBitmap = BitmapFactory.decodeResource(resources, R.drawable.marker_icon)
         var resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, width, height, false)
         val markerIconScaled = BitmapDescriptorFactory.fromBitmap(resizedBitmap)
         resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 1, 1, false)
